@@ -1,4 +1,4 @@
-# quant-engine (C++20 - typescript = postgres)
+# quant-engine (C++20 - typescript - postgres)
 a quantitative research and backtesting platform.
     -C++20 powering high-performance analytics, backtesting, and addon modules (option pricing).
     -TypeScript (node.js) begins runs and exposes an API.
