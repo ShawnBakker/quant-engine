@@ -4,6 +4,7 @@
 #include "qe/version.hpp"
 #include "qe/csv_reader.hpp"
 
+
 int main(int argc, char** argv) {
   if (argc >= 2) {
     std::string cmd = argv[1];
