@@ -12,8 +12,8 @@ struct OhlcvRow {
   double low;
   double close;
   double volume;
-}; // outlines the struct data for open, high, low, close, and volume
+};
 
 using OhlcvTable = std::vector<OhlcvRow>;
 
-} // namespace defined as qe
+} // namespace qe

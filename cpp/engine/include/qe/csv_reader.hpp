@@ -5,6 +5,8 @@
 
 namespace qe {
 
+// OHLCV CSV with header:
+// timestamp,open,high,low,close,volume
 // reads an OHLCV CSV file with headers
 //  values : timestamp,open,high,low,close,volume
 OhlcvTable read_ohlcv_csv(const std::string& path);
