@@ -15,11 +15,12 @@ OhlcvTable read_ohlcv_csv(const std::string& path) {
   OhlcvTable table;
   std::string line;
 
-  // Read header
+  // Read header line
   if (!std::getline(file, line)) {
     throw std::runtime_error("CSV file is empty: " + path);
   }
 
+  // Read data lines
   while (std::getline(file, line)) {
     if (line.empty()) continue;
 
@@ -28,20 +29,26 @@ OhlcvTable read_ohlcv_csv(const std::string& path) {
 
     OhlcvRow row;
 
+    // timestamp
     std::getline(ss, row.timestamp, ',');
 
+    // open
     std::getline(ss, cell, ',');
     row.open = std::stod(cell);
 
+    // high
     std::getline(ss, cell, ',');
     row.high = std::stod(cell);
 
+    // low
     std::getline(ss, cell, ',');
     row.low = std::stod(cell);
 
+    // close
     std::getline(ss, cell, ',');
     row.close = std::stod(cell);
 
+    // volume
     std::getline(ss, cell, ',');
     row.volume = std::stod(cell);
 
