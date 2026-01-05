@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ "dev", "main" ]
+  pull_request:
+    branches: [ "dev", "main" ]
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (CMake)
+        run: cmake -S cpp/engine -B build
+
+      - name: Build (Release)
+        run: cmake --build build --config Release
+
+      - name: Test (ctest)
+        run: ctest --test-dir build -C Release --output-on-failure
