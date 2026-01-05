@@ -16,6 +16,7 @@ endif()
 add_library(qe_engine
   src/version.cpp
   src/csv_reader.cpp
+  src/indicators.cpp
 )
 
 target_include_directories(qe_engine
