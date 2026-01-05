@@ -138,6 +138,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+/build
 # general
 .DS_Store
 Thumbs.db
@@ -177,3 +178,6 @@ yarn-error.log*
 
 # db
 *.sqlite
+
+# json results
+results/
