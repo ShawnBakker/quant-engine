@@ -1,9 +1,10 @@
 #include "qe/report.hpp"
 
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <stdexcept>
-#include <cmath>
+
 namespace qe {
 
 double compute_win_rate(const std::vector<double>& strat_returns) {
@@ -15,7 +16,6 @@ double compute_win_rate(const std::vector<double>& strat_returns) {
   std::size_t total = 0;
 
   for (double r : strat_returns) {
-    // Ignore NaNs if ever appear
     if (std::isnan(r)) {
       continue;
     }
@@ -28,6 +28,7 @@ double compute_win_rate(const std::vector<double>& strat_returns) {
   if (total == 0) {
     return 0.0;
   }
+
   return static_cast<double>(wins) / static_cast<double>(total);
 }
 
@@ -90,6 +91,8 @@ void write_report_json(
   out << "    \"total_return\": " << result.total_return << ",\n";
   out << "    \"sharpe\": " << result.sharpe << ",\n";
   out << "    \"max_drawdown\": " << result.max_drawdown << ",\n";
+  out << "    \"n_trades\": " << result.n_trades << ",\n";
+  out << "    \"total_cost\": " << result.total_cost << ",\n";
   out << "    \"win_rate\": " << win_rate << "\n";
   out << "  },\n";
   out << "  \"series\": {\n";
@@ -98,4 +101,4 @@ void write_report_json(
   out << "}\n";
 }
 
-} // qe
+} // namespace qe
