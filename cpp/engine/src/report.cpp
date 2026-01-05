@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iomanip>
 #include <stdexcept>
-
+#include <cmath>
 namespace qe {
 
 double compute_win_rate(const std::vector<double>& strat_returns) {
