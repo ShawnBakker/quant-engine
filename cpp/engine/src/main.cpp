@@ -5,6 +5,7 @@
 #include "qe/version.hpp"
 #include "qe/csv_reader.hpp"
 #include "qe/indicators.hpp"
+#include "qe/backtest.hpp"
 
 int main(int argc, char** argv) {
   if (argc >= 2) {
@@ -19,7 +20,7 @@ int main(int argc, char** argv) {
     }
 
 
-    // Run (CSV ingestion sanity (I3))
+    // Run (CSV ingestion (I3))
 
     if (cmd == "run") {
       std::string data_path;
@@ -48,7 +49,7 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-  
+
     // Indicators (I4)
 
     if (cmd == "indicators") {
@@ -81,8 +82,7 @@ int main(int argc, char** argv) {
                   << " window=" << window << "\n";
 
         // Print last few rows as sanity check
-        std::size_t start =
-          returns.size() > 5 ? returns.size() - 5 : 0;
+        std::size_t start = returns.size() > 5 ? returns.size() - 5 : 0;
 
         for (std::size_t i = start; i < returns.size(); ++i) {
           std::cout << "i=" << i
@@ -91,6 +91,56 @@ int main(int argc, char** argv) {
                     << " std=" << stddev[i] << "\n";
         }
 
+      } catch (const std::exception& ex) {
+        std::cerr << "Error: " << ex.what() << "\n";
+        return 1;
+      }
+
+      return 0;
+    }
+
+
+    // Backtest (I5)
+
+    if (cmd == "backtest") {
+      std::string data_path;
+      std::size_t fast = 5;
+      std::size_t slow = 20;
+      double initial = 1.0;
+
+      for (int i = 2; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--data" && i + 1 < argc) {
+          data_path = argv[++i];
+        } else if (arg == "--fast" && i + 1 < argc) {
+          fast = static_cast<std::size_t>(std::stoul(argv[++i]));
+        } else if (arg == "--slow" && i + 1 < argc) {
+          slow = static_cast<std::size_t>(std::stoul(argv[++i]));
+        } else if (arg == "--initial" && i + 1 < argc) {
+          initial = std::stod(argv[++i]);
+        }
+      }
+
+      if (data_path.empty()) {
+        std::cerr << "Error: --data <csv_path> is required\n";
+        return 1;
+      }
+
+      try {
+        qe::OhlcvTable table = qe::read_ohlcv_csv(data_path);
+        qe::BacktestResult r = qe::backtest_sma_crossover(table, fast, slow, initial);
+
+        std::cout << "backtest: sma_crossover fast=" << fast
+                  << " slow=" << slow
+                  << " initial=" << initial << "\n";
+
+        std::cout << "total_return=" << r.total_return
+                  << " sharpe=" << r.sharpe
+                  << " max_drawdown=" << r.max_drawdown << "\n";
+
+        if (!r.equity.empty()) {
+          std::cout << "final_equity=" << r.equity.back() << "\n";
+        }
       } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << "\n";
         return 1;
@@ -108,6 +158,7 @@ int main(int argc, char** argv) {
   std::cout << "  qe_cli --version\n";
   std::cout << "  qe_cli run --data <csv_path>\n";
   std::cout << "  qe_cli indicators --data <csv_path> [--window N]\n";
+  std::cout << "  qe_cli backtest --data <csv_path> [--fast N] [--slow N] [--initial X]\n";
 
   return 0;
 }
