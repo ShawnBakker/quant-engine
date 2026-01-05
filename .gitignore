@@ -178,3 +178,6 @@ yarn-error.log*
 
 # db
 *.sqlite
+
+# json results
+results/
