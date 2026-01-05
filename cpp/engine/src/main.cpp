@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -6,11 +7,11 @@
 #include "qe/csv_reader.hpp"
 #include "qe/indicators.hpp"
 #include "qe/backtest.hpp"
+#include "qe/report.hpp"
 
 int main(int argc, char** argv) {
   if (argc >= 2) {
     std::string cmd = argv[1];
-
 
     // Version
 
@@ -20,7 +21,7 @@ int main(int argc, char** argv) {
     }
 
 
-    // Run (CSV ingestion (I3))
+    // Run (CSV ingestion(I3))
 
     if (cmd == "run") {
       std::string data_path;
@@ -49,7 +50,7 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-
+ 
     // Indicators (I4)
 
     if (cmd == "indicators") {
@@ -99,11 +100,12 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-
+ 
     // Backtest (I5)
-
+  
     if (cmd == "backtest") {
       std::string data_path;
+      std::string out_dir;
       std::size_t fast = 5;
       std::size_t slow = 20;
       double initial = 1.0;
@@ -118,6 +120,8 @@ int main(int argc, char** argv) {
           slow = static_cast<std::size_t>(std::stoul(argv[++i]));
         } else if (arg == "--initial" && i + 1 < argc) {
           initial = std::stod(argv[++i]);
+        } else if (arg == "--out" && i + 1 < argc) {
+          out_dir = argv[++i];
         }
       }
 
@@ -136,11 +140,28 @@ int main(int argc, char** argv) {
 
         std::cout << "total_return=" << r.total_return
                   << " sharpe=" << r.sharpe
-                  << " max_drawdown=" << r.max_drawdown << "\n";
+                  << " max_drawdown=" << r.max_drawdown
+                  << " win_rate=" << qe::compute_win_rate(r.strat_ret) << "\n";
 
         if (!r.equity.empty()) {
           std::cout << "final_equity=" << r.equity.back() << "\n";
         }
+
+        if (!out_dir.empty()) {
+          std::filesystem::create_directories(out_dir);
+
+          const std::string equity_path =
+            (std::filesystem::path(out_dir) / "equity.csv").string();
+          const std::string report_path =
+            (std::filesystem::path(out_dir) / "report.json").string();
+
+          qe::write_equity_csv(equity_path, r.equity);
+          qe::write_report_json(report_path, "sma_crossover", fast, slow, initial, r);
+
+          std::cout << "wrote " << equity_path << "\n";
+          std::cout << "wrote " << report_path << "\n";
+        }
+
       } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << "\n";
         return 1;
@@ -150,7 +171,7 @@ int main(int argc, char** argv) {
     }
   }
 
-
+  
   // Usage
 
   std::cout << "qe_cli\n";
@@ -158,7 +179,7 @@ int main(int argc, char** argv) {
   std::cout << "  qe_cli --version\n";
   std::cout << "  qe_cli run --data <csv_path>\n";
   std::cout << "  qe_cli indicators --data <csv_path> [--window N]\n";
-  std::cout << "  qe_cli backtest --data <csv_path> [--fast N] [--slow N] [--initial X]\n";
+  std::cout << "  qe_cli backtest --data <csv_path> [--fast N] [--slow N] [--initial X] [--out <dir>]\n";
 
   return 0;
 }

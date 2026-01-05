@@ -31,6 +31,8 @@ add_library(qe_engine
   src/csv_reader.cpp
   src/indicators.cpp
   src/backtest.cpp
+  src/report.cpp
+
 )
 
 target_include_directories(qe_engine
@@ -50,6 +52,7 @@ enable_testing()
 
 add_executable(qe_tests
   tests/test_indicators.cpp
+  tests/test_backtest.cpp
 )
 
 target_link_libraries(qe_tests
