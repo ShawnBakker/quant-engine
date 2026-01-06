@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <vector>
 
+using qe::BacktestCosts;
+
 namespace qe {
 
 static double ms_since(const std::chrono::steady_clock::time_point& start,
@@ -84,7 +86,7 @@ int run_benchmarks(const std::string& csv_path, std::size_t iters) {
     volatile double sink = 0.0;
 
     for (std::size_t i = 0; i < iters; ++i) {
-      BacktestCosts c;
+      qe::BacktestCosts c;
       c.fee_bps = 1.0;
       c.slippage_bps = 1.0;
 

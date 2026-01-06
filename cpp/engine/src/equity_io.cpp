@@ -1,4 +1,5 @@
 #include "qe/report.hpp"
+#include "qe/equity_io.hpp"
 
 #include <fstream>
 #include <stdexcept>

@@ -6,19 +6,20 @@
 #include <system_error>
 
 #include <boost/json.hpp>
-
+#include "qe/config.hpp"
 #include "qe/version.hpp"
 #include "qe/csv_reader.hpp"
 #include "qe/indicators.hpp"
 #include "qe/backtest.hpp"
 #include "qe/report.hpp"
+#include "qe/equity_io.hpp"
 
 int main(int argc, char** argv) {
   if (argc >= 2) {
     std::string cmd = argv[1];
 
     // Version
-    
+
     if (cmd == "--version" || cmd == "-v") {
       std::cout << "qe_cli version " << qe::version() << "\n";
       return 0;

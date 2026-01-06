@@ -54,7 +54,8 @@ BacktestResult backtest_sma_crossover(
   const OhlcvTable& data,
   std::size_t fast_window,
   std::size_t slow_window,
-  double initial_equity
+  double initial_equity,
+  BacktestCosts costs
 ) {
   if (fast_window == 0 || slow_window == 0) {
     throw std::invalid_argument("windows must be > 0");

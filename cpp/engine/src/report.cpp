@@ -31,20 +31,6 @@ double compute_win_rate(const std::vector<double>& strat_returns) {
   return static_cast<double>(wins) / static_cast<double>(total);
 }
 
-void write_equity_csv(const std::string& path, const std::vector<double>& equity) {
-  std::ofstream out(path);
-  if (!out.is_open()) {
-    throw std::runtime_error("failed to open file for writing: " + path);
-  }
-
-  out << "index,equity\n";
-  out << std::setprecision(17);
-
-  for (std::size_t i = 0; i < equity.size(); ++i) {
-    out << i << "," << equity[i] << "\n";
-  }
-}
-
 static std::string json_escape(const std::string& s) {
   std::string out;
   out.reserve(s.size() + 8);
