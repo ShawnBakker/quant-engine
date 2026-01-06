@@ -1,14 +1,41 @@
-# from repo root
-cmake -S . -B build_x64 -G "Visual Studio 17 2022" -A x64
-cmake --build build_x64 --config Release
+# Quant Engine
 
-# generate 252-row synthetic dataset (optional)
-python .\tools\gen_synth_ohlcv.py --out .\data\sample.csv --rows 252 --start-price 100 --mu 0.0003 --sigma 0.01 --seed 42
+**C++20 quantitative backtesting engine** -- aims for correctness, performance, and clean system design.
 
-# run backtest
-.\build_x64\Release\qe_cli.exe backtest --data .\data\sample.csv --config .\config.json --out .\out
+The engine supports:
+- CSV OHLCV ingestion
+- Rolling indicators (SMA)
+- Strategy backtesting with transaction costs
+- Performance metrics (Sharpe, drawdown, win rate)
+- JSON & CSV reporting
+- Deterministic synthetic data generation
+- CI-backed unit testing (Catch2)
 
-# view outputs
-type .\out\report.json
-type .\out\equity.csv
+This project is designed to have: target-based CMake, test coverage, reproducible builds, and incremental feature development.
+
+---
+
+**[`docs/quickstart.md`](docs/quickstart.md)**
+
+---
+
+## Repository Structure
+
+```text
+quant-engine/
+├── cpp/
+│   └── engine/
+│       ├── include/qe/        # Public headers
+│       ├── src/               # Engine implementation
+│       ├── tests/             # Catch2 tests
+│       └── CMakeLists.txt
+├── data/
+│   └── sample.csv             # Example OHLCV dataset
+├── tools/
+│   └── gen_synth_ohlcv.py     # Synthetic OHLCV generator
+├── out/                       # Backtest outputs
+├── docs/
+│   └── quickstart.md
+├── CMakeLists.txt
+└── README.md
 
