@@ -1,22 +1,14 @@
-# quant-engine (C++20 - typescript - postgres)
-a quantitative research and backtesting platform.
-    -C++20 powering high-performance analytics, backtesting, and addon modules (option pricing).
-    -TypeScript (node.js) begins runs and exposes an API.
-    -Postgres stores runs, metrics, and artifacts.
+# from repo root
+cmake -S . -B build_x64 -G "Visual Studio 17 2022" -A x64
+cmake --build build_x64 --config Release
 
-## repo layout
-- `cpp/engine` is a cpp core library and CLI.
-- 'apps/api' is a typescript API service.
-- 'db' is for the schema and migrations.
-- 'docs' holds the architecture and performance notes.
+# generate 252-row synthetic dataset (optional)
+python .\tools\gen_synth_ohlcv.py --out .\data\sample.csv --rows 252 --start-price 100 --mu 0.0003 --sigma 0.01 --seed 42
 
-## quickstart (in progress)
-```bash
-# start database
--> docker compose up -d
+# run backtest
+.\build_x64\Release\qe_cli.exe backtest --data .\data\sample.csv --config .\config.json --out .\out
 
-# build cpp engine (needs implementation)
--> cmake -S cpp/engine -B build && cmake --build build
+# view outputs
+type .\out\report.json
+type .\out\equity.csv
 
-# run API (needs implementation)
--> cd apps/api && npm install && npm run dev
