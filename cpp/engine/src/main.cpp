@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     std::string cmd = argv[1];
 
 
-    // Version
+    // Version 
 
     if (cmd == "--version" || cmd == "-v") {
       std::cout << "qe_cli version " << qe::version() << "\n";

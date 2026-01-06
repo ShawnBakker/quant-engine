@@ -10,7 +10,7 @@ namespace qe {
 namespace json = boost::json;
 
 
-//helpers
+// helpers
 
 
 static std::string read_file(const std::string& path) {
