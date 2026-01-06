@@ -1,104 +1,85 @@
 #include "qe/report.hpp"
 
-#include <cmath>
+#include <boost/json.hpp>
+
 #include <fstream>
-#include <iomanip>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace qe {
 
-double compute_win_rate(const std::vector<double>& strat_returns) {
-  if (strat_returns.empty()) {
-    return 0.0;
-  }
+namespace json = boost::json;
 
-  std::size_t wins = 0;
-  std::size_t total = 0;
+// helpers (I9)
 
-  for (double r : strat_returns) {
-    if (std::isnan(r)) {
-      continue;
-    }
-    ++total;
-    if (r > 0.0) {
-      ++wins;
-    }
-  }
+static boost::json::array to_json_array(const std::vector<double>& v) {
+  boost::json::array a;
+  a.reserve(v.size());
 
-  if (total == 0) {
-    return 0.0;
-  }
-
-  return static_cast<double>(wins) / static_cast<double>(total);
-}
-
-void write_equity_csv(const std::string& path, const std::vector<double>& equity) {
-  std::ofstream out(path);
-  if (!out.is_open()) {
-    throw std::runtime_error("failed to open file for writing: " + path);
-  }
-
-  out << "index,equity\n";
-  out << std::setprecision(17);
-
-  for (std::size_t i = 0; i < equity.size(); ++i) {
-    out << i << "," << equity[i] << "\n";
-  }
-}
-
-static std::string json_escape(const std::string& s) {
-  std::string out;
-  out.reserve(s.size() + 8);
-
-  for (char c : s) {
-    switch (c) {
-      case '\\': out += "\\\\"; break;
-      case '"':  out += "\\\""; break;
-      case '\n': out += "\\n";  break;
-      case '\r': out += "\\r";  break;
-      case '\t': out += "\\t";  break;
-      default:   out += c;      break;
+  for (double x : v) {
+    // keep NaN as null in JSON
+    if (std::isnan(x)) {
+      a.emplace_back(nullptr);
+    } else {
+      a.emplace_back(x);
     }
   }
 
-  return out;
+  return a;
 }
 
-void write_report_json(
-  const std::string& path,
-  const std::string& strategy_name,
-  std::size_t fast_window,
-  std::size_t slow_window,
-  double initial_equity,
-  const BacktestResult& result
-) {
-  std::ofstream out(path);
-  if (!out.is_open()) {
-    throw std::runtime_error("failed to open file for writing: " + path);
+// report writer (I6 + 9)
+
+void write_report_json(const std::string& path,
+                       const std::string& strategy,
+                       std::size_t fast,
+                       std::size_t slow,
+                       double initial,
+                       const BacktestResult& r) {
+  boost::json::object root;
+
+  // top-level metadata
+  root["strategy"] = strategy;
+
+  boost::json::object params;
+  params["fast"] = static_cast<std::int64_t>(fast);
+  params["slow"] = static_cast<std::int64_t>(slow);
+  params["initial"] = initial;
+  root["params"] = std::move(params);
+
+  // summary stats
+  boost::json::object stats;
+  stats["total_return"] = r.total_return;
+  stats["sharpe"] = r.sharpe;
+  stats["max_drawdown"] = r.max_drawdown;
+  stats["trades"] = static_cast<std::int64_t>(r.n_trades);
+  stats["total_cost"] = r.total_cost;
+  root["stats"] = std::move(stats);
+
+  // series
+  boost::json::object series;
+
+  // keep series optional-ish , some runs might omit
+  if (!r.equity.empty()) {
+    series["equity"] = to_json_array(r.equity);
+    series["final_equity"] = r.equity.back();
   }
 
-  const double win_rate = compute_win_rate(result.strat_ret);
+  if (!r.strat_ret.empty()) {
+    series["strategy_returns"] = to_json_array(r.strat_ret);
+  }
 
-  out << std::setprecision(17);
-  out << "{\n";
-  out << "  \"strategy\": \"" << json_escape(strategy_name) << "\",\n";
-  out << "  \"params\": {\n";
-  out << "    \"fast_window\": " << fast_window << ",\n";
-  out << "    \"slow_window\": " << slow_window << ",\n";
-  out << "    \"initial_equity\": " << initial_equity << "\n";
-  out << "  },\n";
-  out << "  \"metrics\": {\n";
-  out << "    \"total_return\": " << result.total_return << ",\n";
-  out << "    \"sharpe\": " << result.sharpe << ",\n";
-  out << "    \"max_drawdown\": " << result.max_drawdown << ",\n";
-  out << "    \"n_trades\": " << result.n_trades << ",\n";
-  out << "    \"total_cost\": " << result.total_cost << ",\n";
-  out << "    \"win_rate\": " << win_rate << "\n";
-  out << "  },\n";
-  out << "  \"series\": {\n";
-  out << "    \"n_steps\": " << result.equity.size() << "\n";
-  out << "  }\n";
-  out << "}\n";
+  root["series"] = std::move(series);
+
+  // write
+  std::ofstream out(path, std::ios::binary);
+  if (!out) {
+    throw std::runtime_error("failed to open report path for write: " + path);
+  }
+
+  // compact JSON is fine , pretty printing is optional and version sensitive
+  out << boost::json::serialize(root) << "\n";
 }
 
-} // namespace qe
+} //qe
