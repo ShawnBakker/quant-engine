@@ -181,3 +181,8 @@ yarn-error.log*
 
 # json results
 results/
+
+# local build + outputs
+build*/
+out/
+results_*/
