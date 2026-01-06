@@ -180,4 +180,9 @@ yarn-error.log*
 *.sqlite
 
 # json results
-results/
+results*/
+
+# build outputs (again)
+/build/
+/build_*/
+/out/
