@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <system_error>
 
 #include "qe/version.hpp"
 #include "qe/csv_reader.hpp"
@@ -128,6 +129,21 @@ int main(int argc, char** argv) {
       if (data_path.empty()) {
         std::cerr << "Error: --data <csv_path> is required\n";
         return 1;
+      }
+      // Pre-create output dir and remove stale artifacts up front
+      std::string equity_path;
+      std::string report_path;
+      if (!out_dir.empty()) {
+        std::filesystem::create_directories(out_dir);
+
+        equity_path = (std::filesystem::path(out_dir) / "equity.csv").string();
+        report_path = (std::filesystem::path(out_dir) / "report.json").string();
+
+        // Remove old outputs so failures can't leave stale files behind
+        std::error_code ec;
+        std::filesystem::remove(equity_path, ec);
+        ec.clear();
+        std::filesystem::remove(report_path, ec);
       }
 
       try {
