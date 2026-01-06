@@ -34,7 +34,7 @@ ctest --test-dir build_x64 -C Release --output-on-failure
 ```
 
 ## 3. Generate the synthetic OHLCV data
-# The repo includes a Python utility to generate realistic OHLCV time series (using a geometric Brownian motion model)
+The repo includes a Python utility to generate realistic OHLCV time series (using a geometric Brownian motion model)
 
 ```powershell
 python tools/gen_synth_ohlcv.py `
@@ -53,7 +53,7 @@ python tools/gen_synth_ohlcv.py `
 ```
 
 ## 4. Create a backtest config
-# This needs to be done (config.json) at the repo root:
+This needs to be done (config.json) at the repo root:
 
 ```json
 {
@@ -68,18 +68,23 @@ python tools/gen_synth_ohlcv.py `
 }
 ```
 
-## Run a backtest
-# CLI backtest command can be executed via:
+## 5. Run a backtest
+CLI backtest command can be executed via:
+
+> NOTE: A JSON-based config loader is planned.  
+> Currently, strategy parameters are passed directly via CLI flags.
 
 ```powershell
 .\build_x64\Release\qe_cli.exe backtest `
   --data data\sample.csv `
-  --config config.json `
+  --fast 10 `
+  --slow 50 `
+  --initial 10000 `
   --out out
 ```
 
 ## 6. Inspect the outputs / results
-# CSV and JSON artifcats will be present:
+CSV and JSON artifcats will be present:
 
 ``` powershell
 type out\equity.csv # Equity curve (CSV)
@@ -114,19 +119,19 @@ type out\report.json # Full report (JSON)
 ## 7. Common errors if you choose to integrate your own dataset or config issues persist:
 
 ```powershell
-“not enough data for slow_window” : 
+'not enough data for slow_window' : 
 
 Ensure rows > slow_window
 
 
-"Config not found" : 
+'Config not found' : 
 
 Run the CLI from the repo root
 
 Use relative paths as shown above
 
 
-"Build directory stuck / locked" : 
+'Build directory stuck / locked' : 
 
 Close Visual Studio
 
@@ -135,7 +140,7 @@ Rename then delete the build folder if needed
 
 ## 8. How can this be customized or edited?
 
-# You can : 
+You can : 
 
 ```txt
 Modify strategy parameters in config.json
