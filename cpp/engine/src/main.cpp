@@ -40,7 +40,8 @@ int main(int argc, char** argv) {
 
       try {
         qe::OhlcvTable table = qe::read_ohlcv_csv(data_path);
-        std::cout << "Loaded " << table.size() << " rows from " << data_path << "\n";
+        std::cout << "Loaded " << table.size()
+                  << " rows from " << data_path << "\n";
       } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << "\n";
         return 1;
@@ -49,7 +50,7 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-
+ 
     // Indicators (I4)
 
     if (cmd == "indicators") {
@@ -99,19 +100,15 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-    // Backtest (I5/6/7)
-
+ 
+    // Backtest (I5)
+  
     if (cmd == "backtest") {
       std::string data_path;
       std::string out_dir;
-
       std::size_t fast = 5;
       std::size_t slow = 20;
       double initial = 1.0;
-
-      // I7: costs/slippage
-      double fee_bps = 0.0;
-      double slip_bps = 0.0;
 
       for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -125,10 +122,6 @@ int main(int argc, char** argv) {
           initial = std::stod(argv[++i]);
         } else if (arg == "--out" && i + 1 < argc) {
           out_dir = argv[++i];
-        } else if (arg == "--fee-bps" && i + 1 < argc) {
-          fee_bps = std::stod(argv[++i]);
-        } else if (arg == "--slip-bps" && i + 1 < argc) {
-          slip_bps = std::stod(argv[++i]);
         }
       }
 
@@ -139,32 +132,21 @@ int main(int argc, char** argv) {
 
       try {
         qe::OhlcvTable table = qe::read_ohlcv_csv(data_path);
-
-        qe::BacktestCosts costs;
-        costs.fee_bps = fee_bps;
-        costs.slippage_bps = slip_bps;
-
-        qe::BacktestResult r = qe::backtest_sma_crossover(table, fast, slow, initial, costs);
+        qe::BacktestResult r = qe::backtest_sma_crossover(table, fast, slow, initial);
 
         std::cout << "backtest: sma_crossover fast=" << fast
                   << " slow=" << slow
-                  << " initial=" << initial
-                  << " fee_bps=" << fee_bps
-                  << " slip_bps=" << slip_bps << "\n";
+                  << " initial=" << initial << "\n";
 
         std::cout << "total_return=" << r.total_return
                   << " sharpe=" << r.sharpe
                   << " max_drawdown=" << r.max_drawdown
                   << " win_rate=" << qe::compute_win_rate(r.strat_ret) << "\n";
 
-        std::cout << "trades=" << r.n_trades
-                  << " total_cost=" << r.total_cost << "\n";
-
         if (!r.equity.empty()) {
           std::cout << "final_equity=" << r.equity.back() << "\n";
         }
 
-        // Issue 6: write outputs
         if (!out_dir.empty()) {
           std::filesystem::create_directories(out_dir);
 
@@ -189,16 +171,15 @@ int main(int argc, char** argv) {
     }
   }
 
-
+  
   // Usage
- 
+
   std::cout << "qe_cli\n";
   std::cout << "Usage:\n";
   std::cout << "  qe_cli --version\n";
   std::cout << "  qe_cli run --data <csv_path>\n";
   std::cout << "  qe_cli indicators --data <csv_path> [--window N]\n";
-  std::cout << "  qe_cli backtest --data <csv_path> [--fast N] [--slow N] [--initial X] "
-               "[--out <dir>] [--fee-bps B] [--slip-bps B]\n";
+  std::cout << "  qe_cli backtest --data <csv_path> [--fast N] [--slow N] [--initial X] [--out <dir>]\n";
 
   return 0;
 }

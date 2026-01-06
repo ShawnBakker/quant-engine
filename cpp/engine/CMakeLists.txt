@@ -13,20 +13,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
-# Boost (I9)
-
-set(BOOST_ENABLE_CMAKE ON CACHE BOOL "" FORCE)
-set(BOOST_INCLUDE_LIBRARIES json CACHE STRING "" FORCE)
-
-FetchContent_Declare(
-  Boost
-  GIT_REPOSITORY https://github.com/boostorg/boost.git
-  GIT_TAG boost-1.84.0
-  GIT_SUBMODULES_RECURSE ON
-)
-
-FetchContent_MakeAvailable(Boost)
-
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,23 +32,12 @@ add_library(qe_engine
   src/indicators.cpp
   src/backtest.cpp
   src/report.cpp
-  src/bench.cpp
 
-  # metrics / IO (link fix)
-
-  src/metrics.cpp
-  src/equity_io.cpp
 )
 
 target_include_directories(qe_engine
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-# Boost.JSON link (Issue 9)
-target_link_libraries(qe_engine
-  PRIVATE
-    Boost::json
 )
 
 # CLI executable
@@ -78,7 +53,6 @@ enable_testing()
 add_executable(qe_tests
   tests/test_indicators.cpp
   tests/test_backtest.cpp
-  tests/test_report.cpp
 )
 
 target_link_libraries(qe_tests
