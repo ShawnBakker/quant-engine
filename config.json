@@ -1,0 +1,9 @@
+{
+  "strategy": "sma_crossover",
+  "params": {
+    "fast": 5,
+    "slow": 20,
+    "initial": 1.0,
+    "costs": { "fee_bps": 0.0, "slippage_bps": 0.0 }
+  }
+}

@@ -7,9 +7,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
 
+enable_testing()
+include(CTest)
 
 # Catch2 (tests)
-
 FetchContent_Declare(
   Catch2
   GIT_REPOSITORY https://github.com/catchorg/Catch2.git
@@ -17,9 +18,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-
 # Boost (JSON)
-
 set(BOOST_INCLUDE_LIBRARIES json container)
 set(BOOST_ENABLE_CMAKE ON)
 
@@ -29,9 +28,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Boost)
 
-
 # qe_engine library
-
 add_library(qe_engine
   src/version.cpp
   src/csv_reader.cpp
@@ -53,9 +50,7 @@ target_link_libraries(qe_engine
     Boost::json
 )
 
-
 # CLI
-
 add_executable(qe_cli
   src/main.cpp
 )
@@ -65,13 +60,12 @@ target_link_libraries(qe_cli
     qe_engine
 )
 
-
 # Tests
-
 add_executable(qe_tests
   tests/test_backtest.cpp
   tests/test_indicators.cpp
   tests/test_report.cpp
+  tests/test_config.cpp
 )
 
 target_link_libraries(qe_tests
@@ -80,6 +74,5 @@ target_link_libraries(qe_tests
     Catch2::Catch2WithMain
 )
 
-include(CTest)
 include(Catch)
 catch_discover_tests(qe_tests)
