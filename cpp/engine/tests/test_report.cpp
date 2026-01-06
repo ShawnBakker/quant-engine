@@ -1,11 +1,12 @@
+#include <catch2/catch_test_macros.hpp>
+
 #include <cmath>
 #include <limits>
 #include <vector>
 
 #include "qe/report.hpp"
 
-#include <catch2/catch_test_macros.hpp>
-
+// simple float compare
 static bool approx(double a, double b, double eps = 1e-12) {
   return std::fabs(a - b) <= eps;
 }
@@ -16,11 +17,27 @@ TEST_CASE("compute_win_rate: empty returns 0") {
 }
 
 TEST_CASE("compute_win_rate: counts strictly positive returns") {
-  std::vector<double> r{0.01, -0.02, 0.0, 0.03};
-  REQUIRE(approx(qe::compute_win_rate(r), 0.5));
+  std::vector<double> r = {
+    -0.01,
+    0.0,
+    0.02,
+    -0.03,
+    0.04
+  };
+
+  // positives = {0.02, 0.04} => 2/5 = 0.4
+  REQUIRE(approx(qe::compute_win_rate(r), 0.4));
 }
 
 TEST_CASE("compute_win_rate: ignores NaNs") {
-  std::vector<double> r{0.01, std::numeric_limits<double>::quiet_NaN(), -0.02};
-  REQUIRE(approx(qe::compute_win_rate(r), 0.5));
+  std::vector<double> r = {
+    std::numeric_limits<double>::quiet_NaN(),
+    0.01,
+    -0.02,
+    std::numeric_limits<double>::quiet_NaN(),
+    0.03
+  };
+
+  // valid = {0.01, -0.02, 0.03} => positives 2/3
+  REQUIRE(approx(qe::compute_win_rate(r), 2.0 / 3.0));
 }
