@@ -74,6 +74,13 @@ A lightweight TypeScript API is implemented to persist (and later store) run met
 
 -Provide basic querying for recent and individual runs
 
+### Storage Info
+/runs supports cursor pagination (created_at DESC, id DESC)
+
+options stores results in runs.args_json.result
+
+backtest stores metrics in run_metrics
+
 ## Key Endpoints
 
 ```text
@@ -186,6 +193,11 @@ report.json:
 
 -Unit tests are written via Catch2.
 -Tests are automatically utilized via CMake.
+
+To run all tests:
+```powershell
+ctest --test-dir build_x64 -C Release
+```
 
 To run all tests:
 ```powershell
