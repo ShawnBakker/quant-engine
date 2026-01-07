@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -9,10 +10,6 @@ namespace qe {
 
 double compute_win_rate(const std::vector<double>& strat_returns);
 
-//CSV with two columns: index,equity
-void write_equity_csv(const std::string& path, const std::vector<double>& equity);
-
-// JSON report (no external deps)
 void write_report_json(
   const std::string& path,
   const std::string& strategy_name,
@@ -22,4 +19,4 @@ void write_report_json(
   const BacktestResult& result
 );
 
-} // namespace qe
+} 

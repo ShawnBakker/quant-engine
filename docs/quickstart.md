@@ -1,146 +1,190 @@
 ## Quickstart for Quant Engine
 
---a clean checkout to a full backtest run with
-synthetic OHLCV data, metrics, and JSON output.
+This guide walks through building the C++ engine, starting Postgres via Docker,
+running the API, and executing CLI commands that persist runs and metrics.
 
-Platform assumptions:
-- Windows 10/11
-- MSVC Build Tools 2022
-- CMake ≥ 3.24
-- Python ≥ 3.10
+The instructions are written for Windows (PowerShell).
 
----
+## Requirements
 
-## 1. Clone the repository
+-Windows 10/11
+-Visual Studio 2022 (MSVC toolchain)
+-CMake ≥ 3.24
+-Docker Desktop
+-Node.js (for API)
+-Git
 
 ```powershell
 git clone https://github.com/ShawnBakker/quant-engine.git
 cd quant-engine
 ```
 
-## 2. Configure and build the cpp engine
-This engine utilizes an out-of-source CMake build targeting MSVC x64.
+## Build the C++ Engine and CLI
 
+From the repository root:
 
 ```powershell
 cmake -S cpp/engine -B build_x64 -G "Visual Studio 17 2022" -A x64
 cmake --build build_x64 --config Release
+ctest --test-dir build_x64 -C Release
 ```
 
-# Run unit tests if you'd like:
-
+The CLI binary will be located at:
+```text
+build_x64/Release/qe_cli.exe
 ```
-ctest --test-dir build_x64 -C Release --output-on-failure
+
+# Note
+on Windows PowerShell:
+
+```yaml
+curl is often an alias for ('Invoke-WebRequest')
+prefer irm / Invoke-RestMethod for JSON calls 
 ```
 
-## 3. Generate the synthetic OHLCV data
-# The repo includes a Python utility to generate realistic OHLCV time series (using a geometric Brownian motion model)
+## Start Postgres (Docker)
+
+Copy the environment template and start the container:
 
 ```powershell
-python tools/gen_synth_ohlcv.py `
-  --out data/sample.csv `
-  --rows 252 `
-  --start-price 100 `
-  --mu 0.0003 `
-  --sigma 0.01 `
-  --seed 42
+Copy-Item .env.ex .env
+docker compose up -d
+docker compose ps
 ```
 
-# Verify if you'd like:
+Wait until the container reports healthy:
 
 ```powershell
-(Import-Csv data/sample.csv).Count
+docker inspect --format='{{json .State.Health.Status}}' qe_postgres
 ```
 
-## 4. Create a backtest config
-# This needs to be done (config.json) at the repo root:
+## Apply Database Migaration
+
+PowerShell does not support ('< file.sql') redirection like bash.
+Use a pipeline instead:
+
+```powershell
+Get-Content -Raw .\db\migrations\init.sql | docker exec -i qe_postgres psql -U qe_user -d qe
+```
+
+Verify tables exist:
+
+```powershell
+docker exec -it qe_postgres psql -U qe_user -d qe -c "\dt"
+```
+
+## Run the API Server
+
+From the repo root:
+
+```powershell
+cd api
+npm install
+npm run dev
+```
+
+Health check:
+
+```powershell
+irm http://localhost:8787/health
+```
+
+Expected output:
 
 ```json
-{
-  "strategy": "sma_crossover",
-  "fast_window": 10,
-  "slow_window": 50,
-  "initial_equity": 10000,
-  "costs": {
-    "fee_bps": 0,
-    "slippage_bps": 0
-  }
-}
+{ "ok": true }
 ```
 
-## Run a backtest
-# CLI backtest command can be executed via:
+## Run the CLI with API Recording Enabled
+
+Set the API URL:
 
 ```powershell
-.\build_x64\Release\qe_cli.exe backtest `
-  --data data\sample.csv `
-  --config config.json `
-  --out out
+$env:QE_API_URL="http://localhost:8787"
 ```
 
-## 6. Inspect the outputs / results
-# CSV and JSON artifcats will be present:
-
-``` powershell
-type out\equity.csv # Equity curve (CSV)
-type out\report.json # Full report (JSON)
-```
-
-# Example report structure:
-
-```json
-{
-  "strategy": "sma_crossover",
-  "params": {
-    "fast": 10,
-    "slow": 50,
-    "initial": 10000
-  },
-  "stats": {
-    "total_return": 1.53,
-    "sharpe": 0.55,
-    "max_drawdown": 0.024,
-    "trades": 124,
-    "total_cost": 0.0
-  },
-  "series": {
-    "equity": [ ... ],
-    "final_equity": 25390.25,
-    "strategy_returns": [ ... ]
-  }
-}
-```
-
-## 7. Common errors if you choose to integrate your own dataset or config issues persist:
+## Backtest Example
 
 ```powershell
-“not enough data for slow_window” : 
-
-Ensure rows > slow_window
-
-
-"Config not found" : 
-
-Run the CLI from the repo root
-
-Use relative paths as shown above
-
-
-"Build directory stuck / locked" : 
-
-Close Visual Studio
-
-Rename then delete the build folder if needed
+.\build_x64\Release\qe_cli.exe backtest --data .\data\sample.csv --out .\out
 ```
 
-## 8. How can this be customized or edited?
+So:
+-Run the backtest
+-Write ('out/equity.csv') and ('out/report.json')
+-Record the run and metrics in Postgres via the API
 
-# You can : 
+## Options Pricing Example
 
-```txt
-Modify strategy parameters in config.json
-Add transaction costs and slippage
-Extend reporting metrics
-Add parallel indicators with std::execution
-Integrate config loading into CI
+```powershell
+.\build_x64\Release\qe_cli.exe options --S 100 --K 110 --r 0.05 --sigma 0.2 --T 0.5
 ```
+
+This does:
+-Compute Black–Scholes prices and greeks
+-Record the run in Postgres
+-Store results in ('runs.args_json.result')
+
+## Verify Stored Runs
+
+# API:
+```powershell
+irm "http://localhost:8787/runs?limit=5"
+```
+
+Fetch a single run:
+```powershell
+$id = "<run-id>"
+irm "http://localhost:8787/runs/$id" | ConvertTo-Json -Depth 10
+```
+
+Fetch a run using cursor:
+```powershell
+irm "http://localhost:8787/runs?limit=2" | ConvertTo-Json -Depth 10
+$cursor = (irm "http://localhost:8787/runs?limit=2").next_cursor
+irm "http://localhost:8787/runs?limit=2&cursor=$cursor" | ConvertTo-Json -Depth 10
+```
+
+# Via Postgres
+```powershell
+docker exec -it qe_postgres psql -U qe_user -d qe -c `
+"SELECT id, command, status, created_at FROM runs ORDER BY created_at DESC LIMIT 5;"
+```
+
+Backtest metrics:
+```powershell
+docker exec -it qe_postgres psql -U qe_user -d qe -c `
+"SELECT * FROM run_metrics ORDER BY run_id DESC LIMIT 5;"
+```
+
+## Common Issues
+
+# Postgres container unhealthy
+
+-Ensure ('.env') exists and contains required variables
+
+-Restart with ('docker compose up -d')
+
+-Inspect logs:
+
+```powershell
+docker logs qe_postgres --tail 200
+```
+
+# API not reachable
+
+-Confirm the API is running on port ('8787')
+
+-Check:
+
+```powershell
+irm http://localhost:8787/health
+```
+
+# Config JSON parse errors
+-Ensure config files are UTF-8 without BOM
+
+-PowerShell may insert BOM when using ('Set-Content')
+-Ensure config files are UTF-8 without BOM
+
+-PowerShell may insert BOM when using ('Set-Content')

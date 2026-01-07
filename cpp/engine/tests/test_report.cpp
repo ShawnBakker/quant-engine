@@ -7,6 +7,7 @@
 #include "qe/backtest.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 
 static bool approx(double a, double b, double eps = 1e-12) {
   return std::fabs(a - b) <= eps;
@@ -25,6 +26,6 @@ TEST_CASE("compute_win_rate: counts positive returns only") {
 
 TEST_CASE("compute_win_rate: ignores NaNs") {
   std::vector<double> r{0.01, std::numeric_limits<double>::quiet_NaN(), -0.02};
-  // total counted = 2 (ignores NaN), wins = 1
+  // total counted = 2 (ignores NaN), wins = 1 
   REQUIRE(approx(qe::compute_win_rate(r), 0.5));
 }
