@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${QE_PG_PORT}:5432"
+      - "${QE_PG_PORT:-5432}:5432"
     volumes:
       - qe_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,6 +14,30 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  api:
+    image: node:20-alpine
+    container_name: qe_api
+    working_dir: /app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # API server
+      PORT: "8787"
+
+      # DB connection from *inside* docker network:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./api:/app
+    ports:
+      - "8787:8787"
+    command: sh -lc "npm install && npm run dev"
 
 volumes:
   qe_pgdata:
