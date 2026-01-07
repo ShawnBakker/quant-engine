@@ -112,10 +112,8 @@ Contains summary statistics:
 
 ## Testing
 
-```yaml
 -Unit tests are written via Catch2.
 -Tests are automatically discovered via CMake.
-```
 
 To run all tests:
 ```powershell
