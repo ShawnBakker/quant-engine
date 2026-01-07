@@ -1,26 +1,35 @@
 #include <array>
+#include <chrono>
+#include <cstdlib>   // std::getenv
+#include <cstdint>
+#include <cstdio>    // popen/_popen
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <iostream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <system_error>
 #include <vector>
-#include <cstdlib>   // std::getenv
-#include <cstdio>    // _popen, _pclose
-#include <chrono>    // temp filename uniqueness
+
+#if defined(_WIN32)
+  #include <windows.h> // GetCurrentProcessId
+#endif
+
+#if !defined(_WIN32)
+  #include <unistd.h>  // getpid
+#endif
 
 #include <boost/json.hpp>
 
-#include "qe/config.hpp"
-#include "qe/version.hpp"
-#include "qe/csv_reader.hpp"
-#include "qe/indicators.hpp"
 #include "qe/backtest.hpp"
-#include "qe/report.hpp"
+#include "qe/config.hpp"
+#include "qe/csv_reader.hpp"
 #include "qe/equity_io.hpp"
+#include "qe/indicators.hpp"
 #include "qe/options.hpp"
+#include "qe/report.hpp"
+#include "qe/version.hpp"
 
 namespace json = boost::json;
 
@@ -80,6 +89,14 @@ static bool write_text_file(const std::filesystem::path& p, const std::string& t
   return static_cast<bool>(out);
 }
 
+static unsigned long long current_process_id_ull() {
+#if defined(_WIN32)
+  return static_cast<unsigned long long>(::GetCurrentProcessId());
+#else
+  return static_cast<unsigned long long>(::getpid());
+#endif
+}
+
 static std::filesystem::path make_temp_json_path(const std::string& stem) {
   std::error_code ec;
   auto dir = std::filesystem::temp_directory_path(ec);
@@ -92,17 +109,20 @@ static std::filesystem::path make_temp_json_path(const std::string& stem) {
         .count()
     );
 
-  const auto filename = stem + "_" + std::to_string(now) + ".json";
+  const auto filename =
+    stem + "_" +
+    std::to_string(current_process_id_ull()) + "_" +
+    std::to_string(now) + ".json";
+
   return dir / filename;
 }
 
 static std::optional<std::string> api_post_json_file(const std::string& url, const std::filesystem::path& json_path) {
-  const char* curl_bin =
-    #if defined(_WIN32)
-      "curl.exe";
-    #else
-      "curl";
-    #endif
+#if defined(_WIN32)
+  const char* curl_bin = "curl.exe";
+#else
+  const char* curl_bin = "curl";
+#endif
 
   std::ostringstream cmd;
   cmd << curl_bin << " -sS -f -X POST "
@@ -175,7 +195,6 @@ static void api_record_backtest_success(
     const qe::BacktestConfig& cfg,
     const qe::BacktestResult& r
 ) {
-  // 1) Create run
   json::object args;
   args["strategy"] = cfg.strategy;
   args["fast"] = static_cast<std::int64_t>(cfg.fast);
@@ -200,6 +219,7 @@ static void api_record_backtest_success(
 
   const std::string run_url = api_base + "/runs";
   auto run_resp = api_post_json_file(run_url, run_path);
+
   std::error_code ec_rm;
   std::filesystem::remove(run_path, ec_rm);
 
@@ -223,7 +243,6 @@ static void api_record_backtest_success(
   }
   const std::string run_id = std::string(idv->as_string());
 
-  // 2) Upsert metrics
   json::object metrics;
   metrics["total_return"] = r.total_return;
   metrics["sharpe"] = r.sharpe;
@@ -282,7 +301,6 @@ int main(int argc, char** argv) {
   if (argc >= 2) {
     std::string cmd = argv[1];
 
-    // Version
     if (cmd == "--version" || cmd == "-v") {
       std::cout << "qe_cli version " << qe::version() << "\n";
       return 0;
@@ -290,7 +308,6 @@ int main(int argc, char** argv) {
 
     const std::string api_base = get_env_or("QE_API_URL", "http://localhost:8787");
 
-    // Run (CSV ingestion check)
     if (cmd == "run") {
       std::string data_path;
 
@@ -317,7 +334,6 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-    // Indicators
     if (cmd == "indicators") {
       std::string data_path;
       std::size_t window = 5;
@@ -363,7 +379,7 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-    // options pricing (Black-Scholes, no dividends) + record run
+    // options pricing + run recording (args_json.result)
     if (cmd == "options") {
       std::optional<double> S;
       std::optional<double> K;
@@ -392,7 +408,6 @@ int main(int argc, char** argv) {
         return 1;
       }
 
-      // record args (plus result)
       json::object args;
       args["S"] = *S;
       args["K"] = *K;
@@ -431,22 +446,20 @@ int main(int argc, char** argv) {
                   << " delta_put=" << dp
                   << " vega=" << v << "\n";
 
-        // record run to API (best-effort)
         api_record_run_only(
           api_base,
           qe::version(),
           "options",
           "success",
           args,
-          "",     // data_ref
-          "",     // out_dir
+          "",
+          "",
           std::nullopt
         );
 
       } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << "\n";
 
-        // record failure
         api_record_run_only(
           api_base,
           qe::version(),
@@ -464,7 +477,6 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-    // Backtest with config + stale-output protection + API run recording
     if (cmd == "backtest") {
       std::string data_path;
       std::string config_path;
@@ -502,10 +514,8 @@ int main(int argc, char** argv) {
         return 1;
       }
 
-      // defaults
       qe::BacktestConfig cfg{};
 
-      // config.json if provided
       if (!config_path.empty()) {
         try {
           cfg = qe::load_backtest_config_json(config_path);
@@ -516,14 +526,12 @@ int main(int argc, char** argv) {
         }
       }
 
-      // CLI overrides win
       if (fast_override) cfg.fast = *fast_override;
       if (slow_override) cfg.slow = *slow_override;
       if (initial_override) cfg.initial = *initial_override;
       if (fee_override) cfg.fee_bps = *fee_override;
       if (slip_override) cfg.slippage_bps = *slip_override;
 
-      // output dir and remove stale artifacts
       std::string equity_path;
       std::string report_path;
       if (!out_dir.empty()) {
@@ -571,7 +579,6 @@ int main(int argc, char** argv) {
           std::cout << "wrote " << report_path << "\n";
         }
 
-        // Record to API/DB (best-effort)
         api_record_backtest_success(api_base, data_path, out_dir, cfg, r);
 
       } catch (const std::exception& ex) {
