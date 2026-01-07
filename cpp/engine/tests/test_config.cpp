@@ -1,7 +1,7 @@
+#include "qe/config.hpp"
+
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
-
-#include "qe/config.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -9,16 +9,20 @@
 
 namespace fs = std::filesystem;
 
-static fs::path write_temp_file(const std::string& contents) {
-  fs::path p = fs::temp_directory_path() / "qe_test_config.json";
-  std::ofstream out(p, std::ios::binary);
-  out << contents;
+static fs::path write_temp_file(const std::string& text) {
+  fs::path p = fs::temp_directory_path() / fs::path("qe_config_test.json");
+
+  // make it a bit unique
+  p += fs::path("_" + std::to_string(std::hash<std::string>{}(text)));
+
+  std::ofstream out(p.string(), std::ios::binary);
+  out << text;
   out.close();
   return p;
 }
 
-TEST_CASE("config: load_backtest_config_json loads flat config", "[config]") {
-  const std::string json = R"json(
+TEST_CASE("load_backtest_config_json: flat config loads fields", "[config]") {
+  const std::string json = R"JSON(
 {
   "strategy": "sma_crossover",
   "fast": 7,
@@ -27,10 +31,10 @@ TEST_CASE("config: load_backtest_config_json loads flat config", "[config]") {
   "fee_bps": 1.5,
   "slippage_bps": 2.0
 }
-)json";
+)JSON";
 
   const fs::path p = write_temp_file(json);
-  qe::BacktestConfig cfg = qe::load_backtest_config_json(p.string());
+  const qe::BacktestConfig cfg = qe::load_backtest_config_json(p.string());
 
   REQUIRE(cfg.strategy == "sma_crossover");
   REQUIRE(cfg.fast == 7);
@@ -40,8 +44,8 @@ TEST_CASE("config: load_backtest_config_json loads flat config", "[config]") {
   REQUIRE(cfg.slippage_bps == Catch::Approx(2.0));
 }
 
-TEST_CASE("config: load_backtest_config_json loads nested config", "[config]") {
-  const std::string json = R"json(
+TEST_CASE("load_backtest_config_json: nested config loads fields", "[config]") {
+  const std::string json = R"JSON(
 {
   "strategy": "sma_crossover",
   "params": {
@@ -51,10 +55,10 @@ TEST_CASE("config: load_backtest_config_json loads nested config", "[config]") {
     "costs": { "fee_bps": 0.5, "slippage_bps": 1.0 }
   }
 }
-)json";
+)JSON";
 
   const fs::path p = write_temp_file(json);
-  qe::BacktestConfig cfg = qe::load_backtest_config_json(p.string());
+  const qe::BacktestConfig cfg = qe::load_backtest_config_json(p.string());
 
   REQUIRE(cfg.strategy == "sma_crossover");
   REQUIRE(cfg.fast == 10);
