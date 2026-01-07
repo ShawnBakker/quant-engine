@@ -34,6 +34,14 @@ The CLI binary will be located at:
 build_x64/Release/qe_cli.exe
 ```
 
+# Note
+on Windows PowerShell:
+
+```yaml
+curl is often an alias for ('Invoke-WebRequest')
+prefer irm / Invoke-RestMethod for JSON calls 
+```
+
 ## Start Postgres (Docker)
 
 Copy the environment template and start the container:
@@ -130,6 +138,13 @@ $id = "<run-id>"
 irm "http://localhost:8787/runs/$id" | ConvertTo-Json -Depth 10
 ```
 
+Fetch a run using cursor:
+```powershell
+irm "http://localhost:8787/runs?limit=2" | ConvertTo-Json -Depth 10
+$cursor = (irm "http://localhost:8787/runs?limit=2").next_cursor
+irm "http://localhost:8787/runs?limit=2&cursor=$cursor" | ConvertTo-Json -Depth 10
+```
+
 # Via Postgres
 ```powershell
 docker exec -it qe_postgres psql -U qe_user -d qe -c `
@@ -167,6 +182,9 @@ irm http://localhost:8787/health
 ```
 
 # Config JSON parse errors
+-Ensure config files are UTF-8 without BOM
+
+-PowerShell may insert BOM when using ('Set-Content')
 -Ensure config files are UTF-8 without BOM
 
 -PowerShell may insert BOM when using ('Set-Content')
