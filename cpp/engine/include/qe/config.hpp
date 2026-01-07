@@ -18,4 +18,4 @@ struct BacktestConfig {
 
 BacktestConfig load_backtest_config_json(const std::string& path);
 
-} //
+} 

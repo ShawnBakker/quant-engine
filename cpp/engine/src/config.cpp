@@ -25,6 +25,16 @@ static std::string read_file(const std::string& path) {
   return s;
 }
 
+//tolerate UTF-8 BOM - a powershell Set-Content issue
+static void strip_utf8_bom(std::string& s) {
+  if (s.size() >= 3 &&
+      static_cast<unsigned char>(s[0]) == 0xEF &&
+      static_cast<unsigned char>(s[1]) == 0xBB &&
+      static_cast<unsigned char>(s[2]) == 0xBF) {
+    s.erase(0, 3);
+  }
+}
+
 static const json::value* find_key(const json::object& obj, const char* k) {
   return obj.if_contains(k);
 }
@@ -50,7 +60,8 @@ static double get_num(const json::object& obj, const char* k) {
   if (!v || !(v->is_double() || v->is_int64())) {
     throw std::runtime_error(std::string("config key must be number: ") + k);
   }
-  return v->is_double() ? v->as_double() : static_cast<double>(v->as_int64());
+  return v->is_double() ? v->as_double()
+                        : static_cast<double>(v->as_int64());
 }
 
 static void maybe_set_size(json::object const& obj, const char* k, std::size_t& out) {
@@ -74,12 +85,15 @@ static void maybe_set_num(json::object const& obj, const char* k, double& out) {
 
 BacktestConfig load_backtest_config_json(const std::string& path) {
   BacktestConfig cfg{};
-  const std::string text = read_file(path);
+  std::string text = read_file(path);
+  strip_utf8_bom(text);
 
   boost::system::error_code ec;
   json::value v = json::parse(text, ec);
   if (ec) {
-    throw std::runtime_error(std::string("config parse failed: ") + ec.message());
+    throw std::runtime_error(
+      std::string("config parse failed for '") + path + "': " + ec.message()
+    );
   }
 
   if (!v.is_object()) {
@@ -109,17 +123,18 @@ BacktestConfig load_backtest_config_json(const std::string& path) {
     params_obj = &pv->as_object();
   }
 
-  // accept both "fast" and legacy "fast_window", same for slow/initial
   maybe_set_size(*params_obj, "fast", cfg.fast);
   maybe_set_size(*params_obj, "fast_window", cfg.fast);
 
   maybe_set_size(*params_obj, "slow", cfg.slow);
   maybe_set_size(*params_obj, "slow_window", cfg.slow);
 
-  if (find_key(*params_obj, "initial")) cfg.initial = get_num(*params_obj, "initial");
-  if (find_key(*params_obj, "initial_equity")) cfg.initial = get_num(*params_obj, "initial_equity");
+  if (find_key(*params_obj, "initial"))
+    cfg.initial = get_num(*params_obj, "initial");
+  if (find_key(*params_obj, "initial_equity"))
+    cfg.initial = get_num(*params_obj, "initial_equity");
 
-  // costs can be nested under params.costs OR live at the same level (flat)
+  // costs: nested or flat
   const json::object* costs_obj = nullptr;
   if (const json::value* cv = find_key(*params_obj, "costs")) {
     if (!cv->is_object()) {
@@ -127,13 +142,11 @@ BacktestConfig load_backtest_config_json(const std::string& path) {
     }
     costs_obj = &cv->as_object();
   } else if (params_obj == &root) {
-    // flat case: costs keys at root
     costs_obj = &root;
   }
 
   if (costs_obj) {
     maybe_set_num(*costs_obj, "fee_bps", cfg.fee_bps);
-    // both spellings
     maybe_set_num(*costs_obj, "slippage_bps", cfg.slippage_bps);
     maybe_set_num(*costs_obj, "slip_bps", cfg.slippage_bps);
   }
