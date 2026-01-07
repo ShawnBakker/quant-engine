@@ -1,13 +1,11 @@
 FROM node:20-alpine
-
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci
 
-COPY tsconfig.json ./
-COPY src ./src
+COPY . .
+RUN npm run build
 
 EXPOSE 8787
-
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "start"]

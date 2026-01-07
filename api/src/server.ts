@@ -76,6 +76,7 @@ app.post("/runs/:id/metrics", async (req, res) => {
 });
 
 const port = Number(process.env.PORT ?? "8787");
-app.listen(port, () => {
-  console.log(`qe-api listening on http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`qe-api listening on http://0.0.0.0:${port}`);
 });
+
