@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: qe_postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${QE_PG_PORT}:5432"
+    volumes:
+      - qe_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  qe_pgdata:
