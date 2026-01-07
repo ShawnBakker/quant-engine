@@ -1,3 +1,4 @@
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -49,14 +50,26 @@ static std::string get_env_or(const char* key, const std::string& def) {
 
 static std::string read_all_from_pipe(const std::string& cmdline) {
   std::string out;
+
+#if defined(_WIN32)
   FILE* pipe = _popen(cmdline.c_str(), "r");
+#else
+  FILE* pipe = popen(cmdline.c_str(), "r");
+#endif
+
   if (!pipe) return out;
 
-  char buf[4096];
-  while (fgets(buf, sizeof(buf), pipe)) {
-    out += buf;
+  std::array<char, 4096> buf{};
+  while (fgets(buf.data(), static_cast<int>(buf.size()), pipe)) {
+    out += buf.data();
   }
+
+#if defined(_WIN32)
   _pclose(pipe);
+#else
+  pclose(pipe);
+#endif
+
   return out;
 }
 
@@ -84,8 +97,15 @@ static std::filesystem::path make_temp_json_path(const std::string& stem) {
 }
 
 static std::optional<std::string> api_post_json_file(const std::string& url, const std::filesystem::path& json_path) {
+  const char* curl_bin =
+    #if defined(_WIN32)
+      "curl.exe";
+    #else
+      "curl";
+    #endif
+
   std::ostringstream cmd;
-  cmd << "curl.exe -sS -f -X POST "
+  cmd << curl_bin << " -sS -f -X POST "
       << "\"" << url << "\" "
       << "-H \"Content-Type: application/json\" "
       << "--data-binary \"@" << json_path.string() << "\"";
