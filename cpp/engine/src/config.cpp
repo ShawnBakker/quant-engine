@@ -25,7 +25,7 @@ static std::string read_file(const std::string& path) {
   return s;
 }
 
-//tolerate UTF-8 BOM - a powershell Set-Content issue
+//tolerate UTF-8 BOM powershell Set-Content issue
 static void strip_utf8_bom(std::string& s) {
   if (s.size() >= 3 &&
       static_cast<unsigned char>(s[0]) == 0xEF &&
