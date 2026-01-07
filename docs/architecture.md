@@ -1,47 +1,105 @@
 # Quant-Engine Architecture Overview
 
-Quant-Engine is a C++-based quantitative trading engine with a command-line interface (CLI) designed for research, backtesting, and performance experimentation.
-The repository is structured as a monorepo to support future addon services,
-APIs, and databases.
+Quant-Engine is a C++-based quantitative research and trading engine with a command-line interface (CLI), designed for backtesting, experimentation, and performance analysis.
+The repository is structured as a monorepo to support future services such as APIs, databases, and distributed run orchestration.
 
 ## Repository Layout
 
 ```yaml
 ├── cpp/
 │ └── engine/
-│ ├── include/qe/ # Public headers
-│ ├── src/ # Engine + CLI implementation
-│ ├── tests/ # Catch2 unit tests
+│ ├── include/qe/        # Public headers
+│ ├── src/               # Engine + CLI implementation
+│ ├── tests/             # Catch2 unit tests
 │ └── CMakeLists.txt
-├── data/ # Sample datasets (CSV)
-├── docs/ # Architecture and usage docs
-├── out/ # Generated outputs (ignored by git)
-└── README.md
+├── api/                 # TypeScript API (Express + Postgres)
+├── db/
+│ ├── migrations/        # SQL migrations
+│ └── schema.md
+├── data/                # Sample datasets (CSV)
+├── docs/                # Architecture and quickstart docs
+├── tools/               # Helper scripts
+├── out/                 # Generated outputs (local)
+└── docker-compose.yml
 ```
 
 ## Core Components
 
 ### `qe_engine` (C++ library)
-The engine is built as a reusable static/shared library that provides:
+The engine is built as a reusable C++ library providing:
 
-- CSV ingestion (`csv_reader`)
-- Indicators (returns, rolling mean/std)
-- Strategy backtesting (SMA crossover)
-- Cost modeling (fees + slippage)
-- Reporting (equity curves, metrics)
+-CSV ingestion ('csv_reader')
+
+-Indicators (returns, rolling mean, rolling std)
+
+-Strategy backtesting (SMA crossover)
+
+-Cost modeling (fees + slippage)
+
+-Reporting (equity curves, summary metrics)
+
+-Options pricing (Black–Scholes + greeks)
+
+-Micro-benchmarks (compute vs IO)
+
 
 This separation allows the engine to be reused by:
-- CLI tools
-- Future services (API, batch runs)
-- Performance benchmarks
+
+-CLI tools
+
+-Automated batch runs
+
+-Future services and APIs
 
 ### `qe_cli` (CLI)
+The CLI is a thin orchestration layer over ('qe_engine'). It is responsible for:
 
-The CLI is a thin wrapper over `qe_engine`. It handles:
-- Argument parsing
-- Config loading
-- File IO orchestration
-- Human-readable output
+-Argument parsing
+
+-Config loading (JSON via Boost.JSON)
+
+-File IO coordination
+
+-Human-readable output
+
+-Recording runs to the API (when enabled)
+
+### API + Storage
+A lightweight TypeScript API is implemented to persist (and later store) run metadata and metrics.
+
+### API Responsibilities
+-Store run metadata (runs table)
+
+-Store backtest metrics (run_metrics table)
+
+-Provide basic querying for recent and individual runs
+
+## Key Endpoints
+
+```text
+GET  /health
+POST /runs
+GET  /runs?limit=N
+GET  /runs/:id
+POST /runs/:id/metrics
+```
+
+## Database
+
+Postgres runs via Docker Compose and is initialized with SQL migrations.
+
+ex:
+
+- ('runs')
+run metadata
+
+command name ('backtest, options')
+
+JSON arguments + results
+
+- ('run_metrics')
+
+numeric backtest metrics keyed by ('run_id')
 
 ## Build Instructions (Windows)
 
@@ -49,6 +107,8 @@ The CLI is a thin wrapper over `qe_engine`. It handles:
 - Windows 10/11
 - Visual Studio 2022 (MSVC)
 - CMake ≥ 3.24
+- Docker Desktop
+- Node.js (for API)
 
 ### Build (x64, Release)
 
@@ -60,6 +120,7 @@ ctest --test-dir build_x64 -C Release
 
 ## Demo Commands
 
+Version
 ```powershell
 qe_cli --version
 ```
@@ -71,6 +132,11 @@ qe_cli run --data data/sample.csv
 
 Indicators
 ```powershell
+qe_cli indicators --data data/sample.csv --window 5
+```
+
+Backtest
+```powershell
 qe_cli backtest --data data/sample.csv --out out
 ```
 
@@ -79,7 +145,12 @@ Backtest (Config-driven)
 qe_cli backtest --data data/sample.csv --config config.json --out out
 ```
 
-Example config.json:
+Options pricing (Black-Scholes)
+```powershell
+qe_cli options --S 100 --K 110 --r 0.05 --sigma 0.2 --T 0.5
+```
+
+Backtest config format:
 ```json
 {
   "strategy": "sma_crossover",
@@ -99,21 +170,22 @@ Example config.json:
 
 ```yaml
 equity.csv:
-A time-ordered equity curve of the strategy.
+  Time-ordered equity curve of the strategy.
 
-report.json
-Contains summary statistics:
--total return
--Sharpe ratio
--max drawdown
--trade count
--cost impact
+report.json:
+  Summary statistics including:
+    - total return
+    - Sharpe ratio
+    - max drawdown
+    - win rate
+    - trade count
+    - total cost
 ```
 
 ## Testing
 
 -Unit tests are written via Catch2.
--Tests are automatically discovered via CMake.
+-Tests are automatically utilized via CMake.
 
 To run all tests:
 ```powershell
