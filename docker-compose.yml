@@ -8,7 +8,11 @@ services:
     ports:
       - "${QE_PG_PORT:-5432}:5432"
     volumes:
+      # Persistent database storage
       - qe_pgdata:/var/lib/postgresql/data
+
+      # Run SQL migrations on first init (fresh volume only)
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -16,9 +20,9 @@ services:
       retries: 20
 
   api:
-    image: node:20-alpine
+    build:
+      context: ./api
     container_name: qe_api
-    working_dir: /app
     restart: unless-stopped
     depends_on:
       postgres:
@@ -27,17 +31,14 @@ services:
       # API server
       PORT: "8787"
 
-      # DB connection from *inside* docker network:
+      # Postgres connection (inside docker network)
       PGHOST: postgres
       PGPORT: "5432"
       PGDATABASE: ${POSTGRES_DB}
       PGUSER: ${POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - ./api:/app
     ports:
       - "8787:8787"
-    command: sh -lc "npm install && npm run dev"
 
 volumes:
   qe_pgdata:
