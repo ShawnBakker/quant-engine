@@ -16,6 +16,7 @@ This project is designed to have: target-based CMake, test coverage, reproducibl
 ---
 
 **[`docs/quickstart.md`](docs/quickstart.md)**
+**[`docs/architecture.md`](docs/architecture.md)**
 
 ---
 
@@ -36,6 +37,7 @@ quant-engine/
 ├── out/                       # Backtest outputs
 ├── docs/
 │   └── quickstart.md
+│   └── architecture.md
 ├── CMakeLists.txt
 └── README.md
 
