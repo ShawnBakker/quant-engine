@@ -7,9 +7,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
 
-enable_testing()
-include(CTest)
-
 # Catch2 (tests)
 FetchContent_Declare(
   Catch2
@@ -74,5 +71,6 @@ target_link_libraries(qe_tests
     Catch2::Catch2WithMain
 )
 
+include(CTest)
 include(Catch)
 catch_discover_tests(qe_tests)
