@@ -1,31 +1,17 @@
-import { z } from "zod";
 import { pool } from "./db.js";
+import { CreateRunBody, UpsertMetricsBody } from "./schema.js";
 
-export const RunStatus = z.enum(["queued", "running", "success", "failed"]);
-
-export const CreateRunBody = z.object({
-  engine_version: z.string().default(""),
-  command: z.string().min(1),
-  status: RunStatus.default("success"),
-  args_json: z.record(z.any()).default({}),
-  data_ref: z.string().default(""),
-  out_dir: z.string().default(""),
-  error: z.string().optional().nullable()
-});
-
-export type CreateRunBody = z.infer<typeof CreateRunBody>;
-
-export const UpsertMetricsBody = z.object({
-  total_return: z.number().optional().nullable(),
-  sharpe: z.number().optional().nullable(),
-  max_drawdown: z.number().optional().nullable(),
-  win_rate: z.number().optional().nullable(),
-  n_trades: z.number().int().optional().nullable(),
-  total_cost: z.number().optional().nullable(),
-  final_equity: z.number().optional().nullable()
-});
-
-export type UpsertMetricsBody = z.infer<typeof UpsertMetricsBody>;
+type RunRow = {
+  id: string;
+  created_at: string;
+  engine_version: string;
+  command: string;
+  status: string;
+  args_json: any;
+  data_ref: string;
+  out_dir: string;
+  error: string | null;
+};
 
 export async function createRun(input: CreateRunBody) {
   const q = `
@@ -43,18 +29,54 @@ export async function createRun(input: CreateRunBody) {
     input.error ?? null,
   ];
   const res = await pool.query(q, values);
-  return res.rows[0];
+  return res.rows[0] as RunRow;
 }
 
-export async function listRuns(limit: number) {
+/**
+ * Cursor pagination:
+ * - Order: created_at DESC, id DESC
+ * - cursor is a run id
+ * - We page "older than cursor" using (created_at, id) < (cursor_created_at, cursor_id)
+ */
+export async function listRuns(limit: number, cursor?: string) {
+  if (!cursor) {
+    const q = `
+      SELECT id, created_at, engine_version, command, status, args_json, data_ref, out_dir, error
+      FROM runs
+      ORDER BY created_at DESC, id DESC
+      LIMIT $1
+    `;
+    const res = await pool.query(q, [limit]);
+    const items = res.rows as RunRow[];
+    return {
+      items,
+      next_cursor: items.length === limit ? items[items.length - 1].id : null,
+    };
+  }
+
+  // Look up cursor anchor (created_at + id)
+  const anchorQ = `SELECT id, created_at FROM runs WHERE id = $1`;
+  const anchorRes = await pool.query(anchorQ, [cursor]);
+  const anchor = anchorRes.rows[0] as { id: string; created_at: string } | undefined;
+  if (!anchor) {
+    const err: any = new Error("cursor not found");
+    err.status = 400;
+    throw err;
+  }
+
   const q = `
     SELECT id, created_at, engine_version, command, status, args_json, data_ref, out_dir, error
     FROM runs
-    ORDER BY created_at DESC
+    WHERE (created_at, id) < ($2::timestamptz, $3::uuid)
+    ORDER BY created_at DESC, id DESC
     LIMIT $1
   `;
-  const res = await pool.query(q, [limit]);
-  return res.rows;
+  const res = await pool.query(q, [limit, anchor.created_at, anchor.id]);
+  const items = res.rows as RunRow[];
+  return {
+    items,
+    next_cursor: items.length === limit ? items[items.length - 1].id : null,
+  };
 }
 
 export async function getRunById(id: string) {
