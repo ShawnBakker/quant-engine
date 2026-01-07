@@ -16,6 +16,11 @@ export const pool = new Pool({
   password: requireEnv("PGPASSWORD", "qe_password"),
 });
 
+// Optional: log unexpected pool errors (does not crash the process)
+pool.on("error", (err) => {
+  console.error("[db] pool error:", err?.message ?? err);
+});
+
 export async function dbHealthcheck(): Promise<void> {
   const res = await pool.query("SELECT 1 as ok");
   if (res.rows?.[0]?.ok !== 1) {
