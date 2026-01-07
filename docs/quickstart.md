@@ -51,6 +51,14 @@ Copy-Item .env.ex .env
 docker compose up -d
 docker compose ps
 ```
+Option 2 -- Run everything in Docker
+
+```powershell
+Copy-Item .env.ex .env
+docker compose up -d --build
+irm http://localhost:8787/health
+then your CLI steps (CLI still runs on host, talking to API on localhost)
+```
 
 Wait until the container reports healthy:
 
