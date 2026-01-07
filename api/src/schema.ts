@@ -6,7 +6,7 @@ export const CreateRunBody = z.object({
   engine_version: z.string().default(""),
   command: z.string().min(1),
   status: RunStatus.default("success"),
-  args_json: z.record(z.unknown()).default({}),
+  args_json: z.record(z.string(), z.unknown()).default({}),
   data_ref: z.string().default(""),
   out_dir: z.string().default(""),
   error: z.string().optional().nullable(),
