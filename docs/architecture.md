@@ -1,87 +1,122 @@
 # Quant-Engine Architecture Overview
 
-Quant-Engine is a C++-based quantitative research and trading engine with a command-line interface (CLI), designed for backtesting, experimentation, and performance analysis.
-The repository is structured as a monorepo to support future services such as APIs, databases, and distributed run orchestration.
+Quant-Engine is a modular quantitative research and backtesting system composed of:
+
+- A deterministic C++ computation core
+- A thin command-line orchestration layer
+- A Docker-backed API 
+
+---
 
 ## Repository Layout
 
-```yaml
+```text
 ├── cpp/
-│ └── engine/
-│ ├── include/qe/        # Public headers
-│ ├── src/               # Engine + CLI implementation
-│ ├── tests/             # Catch2 unit tests
-│ └── CMakeLists.txt
-├── api/                 # TypeScript API (Express + Postgres)
+│   └── engine/
+│       ├── include/qe/        # Public C++ headers
+│       ├── src/               # Engine + CLI implementation
+│       ├── tests/             # Catch2 unit tests
+│       └── CMakeLists.txt
+├── api/                       # TypeScript API (Express)
 ├── db/
-│ ├── migrations/        # SQL migrations
-│ └── schema.md
-├── data/                # Sample datasets (CSV)
-├── docs/                # Architecture and quickstart docs
-├── tools/               # Helper scripts
-├── out/                 # Generated outputs (local)
+│   ├── migrations/            # SQL schema
+│   └── schema.md
+├── data/                      # Sample datasets
+├── docs/                      # Architecture + Quickstart
+├── out/                       # Local outputs
 └── docker-compose.yml
 ```
 
 ## Core Components
 
 ### `qe_engine` (C++ library)
-The engine is built as a reusable C++ library providing:
+`qe_engine` is a reusable, deterministic computation library.
+It performs no IO and has no external side effects.
 
--CSV ingestion ('csv_reader')
+Responsibilities include:
 
--Indicators (returns, rolling mean, rolling std)
+-CSV ingestion
+
+-Rolling indicators (returns, SMA, volatility)
 
 -Strategy backtesting (SMA crossover)
 
--Cost modeling (fees + slippage)
+-Cost modeling (fees, slippage)
 
 -Reporting (equity curves, summary metrics)
 
 -Options pricing (Black–Scholes + greeks)
 
--Micro-benchmarks (compute vs IO)
-
+-Micro-benchmarks
 
 This separation allows the engine to be reused by:
 
 -CLI tools
 
--Automated batch runs
+-Batch experiments
 
--Future services and APIs
+-Future services
 
 ### `qe_cli` (CLI)
-The CLI is a thin orchestration layer over ('qe_engine'). It is responsible for:
+The CLI is a thin orchestration layer over `qe_engine`.
+
+Responsibilities:
 
 -Argument parsing
 
--Config loading (JSON via Boost.JSON)
+-JSON config loading (Boost.json)
 
 -File IO coordination
 
 -Human-readable output
 
--Recording runs to the API (when enabled)
+-Optional recording of runs via the API
 
-### API + Storage
-A lightweight TypeScript API is implemented to persist (and later store) run metadata and metrics.
+-The CLI is currently the only writer to the API.
+
+### API + Persistence layer
+A lightweight TypeScript API provides persistence and query access
+for experiment runs.
 
 ### API Responsibilities
--Store run metadata (runs table)
+-Store run metadata (`runs` table)
 
--Store backtest metrics (run_metrics table)
+-Store numeric backtest metrics (`run_metrics` table)
 
--Provide basic querying for recent and individual runs
+-Provide cursor-based querying for recent and individual runs
 
-### Storage Info
-/runs supports cursor pagination (created_at DESC, id DESC)
+The API does not execute strategies or pricing logic.
 
-options stores results in runs.args_json.result
+### Storage Model
+`runs` stores immutable run metadata:
 
-backtest stores metrics in run_metrics
+-`id`
 
-## Key Endpoints
+-`command` (e.g. `backtest`, `options`)
+
+-`engine_version`
+
+-JSON arguments
+
+-JSON results (when applicable)
+
+`run_metrics` stores numeric metrics for backtests:
+
+-Sharpe ratio
+
+-Total return
+
+-Drawdown
+
+-Win rate
+
+-Trade count
+
+-Costs
+
+Metrics are normalized to support future analytics.
+
+## Endpoints
 
 ```text
 GET  /health
@@ -91,115 +126,26 @@ GET  /runs/:id
 POST /runs/:id/metrics
 ```
 
+## Infrastructure
+
+-Postgres and API run via Docker Compose
+
+-Database schema is applied automatically on startup
+
+-The system is designed for local-first development on Windows
+
 ## Database
 
-Postgres runs via Docker Compose and is initialized with SQL migrations.
+Postgres runs via Docker Compose and is initialized from SQL migrations in `db/migrations`.
 
-ex:
+- `runs`: immutable run metadata (command, engine_version, created_at) plus `args_json` (inputs and, for options runs, `args_json.result`)
+- `run_metrics`: numeric backtest metrics keyed by `run_id` for query-friendly analysis
 
-- ('runs')
-run metadata
+## Build & Testing (Windows)
 
-command name ('backtest, options')
+See `docs/quickstart.md` for the full developer workflow.
 
-JSON arguments + results
-
-- ('run_metrics')
-
-numeric backtest metrics keyed by ('run_id')
-
-## Build Instructions (Windows)
-
-### Requirements
-- Windows 10/11
-- Visual Studio 2022 (MSVC)
-- CMake ≥ 3.24
-- Docker Desktop
-- Node.js (for API)
-
-### Build (x64, Release)
-
-```powershell
-cmake -S cpp/engine -B build_x64 -G "Visual Studio 17 2022" -A x64
-cmake --build build_x64 --config Release
-ctest --test-dir build_x64 -C Release
-```
-
-## Demo Commands
-
-Version
-```powershell
-qe_cli --version
-```
-
-CSV Load Check
-```powershell
-qe_cli run --data data/sample.csv
-```
-
-Indicators
-```powershell
-qe_cli indicators --data data/sample.csv --window 5
-```
-
-Backtest
-```powershell
-qe_cli backtest --data data/sample.csv --out out
-```
-
-Backtest (Config-driven)
-```powershell
-qe_cli backtest --data data/sample.csv --config config.json --out out
-```
-
-Options pricing (Black-Scholes)
-```powershell
-qe_cli options --S 100 --K 110 --r 0.05 --sigma 0.2 --T 0.5
-```
-
-Backtest config format:
-```json
-{
-  "strategy": "sma_crossover",
-  "params": {
-    "fast": 5,
-    "slow": 20,
-    "initial": 1.0,
-    "costs": {
-      "fee_bps": 0.0,
-      "slippage_bps": 0.0
-    }
-  }
-}
-```
-
-## Outputs
-
-```yaml
-equity.csv:
-  Time-ordered equity curve of the strategy.
-
-report.json:
-  Summary statistics including:
-    - total return
-    - Sharpe ratio
-    - max drawdown
-    - win rate
-    - trade count
-    - total cost
-```
-
-## Testing
-
--Unit tests are written via Catch2.
--Tests are automatically utilized via CMake.
-
-To run all tests:
-```powershell
-ctest --test-dir build_x64 -C Release
-```
-
-To run all tests:
+C++ builds use CMake + Visual Studio 2022 (x64). Unit tests are written with Catch2 and run via CTest:
 ```powershell
 ctest --test-dir build_x64 -C Release
 ```
