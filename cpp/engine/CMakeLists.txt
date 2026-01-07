@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
 
-# Catch2 (tests)
+# Catch2 
 FetchContent_Declare(
   Catch2
   GIT_REPOSITORY https://github.com/catchorg/Catch2.git
@@ -25,7 +25,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Boost)
 
-# qe_engine library
+# qelibrary
 add_library(qe_engine
   src/version.cpp
   src/csv_reader.cpp
@@ -35,6 +35,7 @@ add_library(qe_engine
   src/equity_io.cpp
   src/config.cpp
   src/bench.cpp
+  src/options.cpp
 )
 
 target_include_directories(qe_engine
@@ -63,6 +64,7 @@ add_executable(qe_tests
   tests/test_indicators.cpp
   tests/test_report.cpp
   tests/test_config.cpp
+  tests/test_options.cpp
 )
 
 target_link_libraries(qe_tests
