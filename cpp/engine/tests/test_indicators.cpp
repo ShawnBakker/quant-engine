@@ -6,6 +6,7 @@
 #include "qe/data.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 
 static bool approx(double a, double b, double eps = 1e-12) {
   return std::fabs(a - b) <= eps;
